@@ -8,6 +8,9 @@
 #   3. job "publish"  publishes the release and marks it "latest", so
 #                     install.sh (GitHub API releases/latest) only sees it once
 #                     all assets are uploaded.
+# Supply chain: every action is pinned to a full commit SHA (version in the
+# trailing comment); geoip/geosite .dat files are verified against the
+# .sha256sum files published next to them.
 # Re-publishing an existing tag: Actions -> Build and Release -> Run workflow,
 # enter the tag (assets are overwritten with --clobber).
 # Pushes / PRs touching Go code only build and upload workflow artifacts.
@@ -149,7 +152,7 @@ jobs:
       CGO_ENABLED: 0
     steps:
       - name: Checkout codebase
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           ref: ${{ env.RELEASE_TAG != '' && format('refs/tags/{0}', env.RELEASE_TAG) || '' }}
       - name: Show workflow information
@@ -160,9 +163,9 @@ jobs:
           echo "ASSET_NAME=$_NAME" >> $GITHUB_OUTPUT
           echo "ASSET_NAME=$_NAME" >> $GITHUB_ENV
       - name: Set up Go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5.6.0
         with:
-          go-version: '1.25.0'
+          go-version: '1.25.14'   # latest 1.25 patch (security fixes); bump together with Dockerfile
 
       - name: Get project dependencies
         run: |
@@ -201,7 +204,17 @@ jobs:
             DOWNLOAD_URL="${GEO_DAT_BASE_URL}/${i}.dat"
             FILE_NAME="${i}.dat"
             echo -e "Downloading ${DOWNLOAD_URL}..."
-            curl -fL --retry 3 "${DOWNLOAD_URL}" -o ./build_assets/${FILE_NAME}
+            curl -fL --proto '=https' --tlsv1.2 --retry 3 "${DOWNLOAD_URL}" -o "./build_assets/${FILE_NAME}"
+            curl -fL --proto '=https' --tlsv1.2 --retry 3 "${DOWNLOAD_URL}.sha256sum" -o "./${FILE_NAME}.sha256sum"
+            # verify (the .sha256sum lists the bare file name)
+            want=$(awk '{print $1; exit}' "./${FILE_NAME}.sha256sum")
+            got=$(sha256sum "./build_assets/${FILE_NAME}" | awk '{print $1}')
+            if [ -z "$want" ] || [ "$want" != "$got" ]; then
+              echo "::error::${FILE_NAME} SHA-256 mismatch (want '$want', got '$got')"
+              exit 1
+            fi
+            echo "${FILE_NAME} sha256 OK: $got"
+            rm -f "./${FILE_NAME}.sha256sum"
           done
       - name: Create ZIP archive
         shell: bash
@@ -220,7 +233,7 @@ jobs:
         run: |
           mv build_assets V2bX-$ASSET_NAME
       - name: Upload files to Artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: V2bX-${{ steps.get_filename.outputs.ASSET_NAME }}
           path: |
