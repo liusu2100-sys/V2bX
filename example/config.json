@@ -24,6 +24,7 @@
       "ApiHost": "http://127.0.0.1",
       "ApiKey": "test",
       "NodeID": 33,
+      "MachineID": 0,
       "NodeType": "shadowsocks",
       "Timeout": 30,
       "ListenIP": "0.0.0.0",

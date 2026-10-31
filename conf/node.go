@@ -28,6 +28,7 @@ type ApiConfig struct {
 	APISendIP    string `json:"ApiSendIP"`
 	NodeID       int    `json:"NodeID"`
 	Key          string `json:"ApiKey"`
+	MachineID    int    `json:"MachineID"`
 	NodeType     string `json:"NodeType"`
 	Timeout      int    `json:"Timeout"`
 	RuleListPath string `json:"RuleListPath"`

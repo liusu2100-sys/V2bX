@@ -64,6 +64,26 @@ GOEXPERIMENT=jsonv2 go build -v -o build_assets/V2bX -tags "sing xray hysteria2 
 
 [详细使用教程](https://v2bx.v-50.me/)
 
+### Xboard 机器令牌（可选）
+
+新版 Xboard 提供机器级通讯令牌（`/api/v2/server/*`）。与面板全局的通讯密钥 `server_token` 不同，机器令牌只能访问绑定在该机器上且已启用的节点，并可在面板中单独停用，单台服务器泄露不会影响其他节点。
+
+在节点配置中填写 `MachineID`（面板中机器的 ID）即可启用，此时 `ApiKey` 填写该机器的令牌：
+
+```json
+{
+  "ApiHost": "https://panel.example.com",
+  "ApiKey": "机器令牌",
+  "MachineID": 3,
+  "NodeID": 33,
+  "NodeType": "vless"
+}
+```
+
+- `MachineID` 未填写或为 `0` 时，沿用原有的 `/api/v1/server/UniProxy/*` 接口与全局通讯密钥，行为不变。
+- `MachineID` 大于 0 时，改用 `/api/v2/server/*`，请求参数为 `machine_id`、`node_id`、`token`；`NodeID` 必须是绑定在该机器上的节点 ID（不支持节点 code），否则面板返回 `Node not found on this machine`。
+- `NodeType` 仍需正确填写，V2bX 依此解析节点配置。
+
 ## 免责声明
 
 * 此项目用于本人自用，因此本人不能保证向后兼容性。
