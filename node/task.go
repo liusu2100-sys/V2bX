@@ -49,6 +49,22 @@ func (c *Controller) startTasks(node *panel.NodeInfo) {
 	}
 }
 
+// updateTaskIntervals 在面板修改拉取 / 推送间隔后重启对应任务；
+// 面板下发 0 表示保持当前间隔。
+func (c *Controller) updateTaskIntervals(n *panel.NodeInfo) {
+	restartTask(c.nodeInfoMonitorPeriodic, n.PullInterval)
+	restartTask(c.userReportPeriodic, n.PushInterval)
+}
+
+func restartTask(t *task.Task, interval time.Duration) {
+	if t == nil || interval == 0 || t.Interval == interval {
+		return
+	}
+	t.Close()
+	t.Interval = interval
+	_ = t.Start(false)
+}
+
 func (c *Controller) nodeInfoMonitor() (err error) {
 	// get node info
 	newN, err := c.apiClient.GetNodeInfo()
@@ -150,19 +166,7 @@ func (c *Controller) nodeInfoMonitor() (err error) {
 			}).Error("Add users failed")
 			return nil
 		}
-		// Check interval
-		if c.nodeInfoMonitorPeriodic.Interval != newN.PullInterval &&
-			newN.PullInterval != 0 {
-			c.nodeInfoMonitorPeriodic.Interval = newN.PullInterval
-			c.nodeInfoMonitorPeriodic.Close()
-			_ = c.nodeInfoMonitorPeriodic.Start(false)
-		}
-		if c.userReportPeriodic.Interval != newN.PushInterval &&
-			newN.PushInterval != 0 {
-			c.userReportPeriodic.Interval = newN.PullInterval
-			c.userReportPeriodic.Close()
-			_ = c.userReportPeriodic.Start(false)
-		}
+		c.updateTaskIntervals(newN)
 		log.WithField("tag", c.tag).Infof("Added %d new users", len(c.userList))
 		// exit
 		return nil
